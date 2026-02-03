@@ -178,7 +178,7 @@ onUnmounted(() => {
   }
 }
 
-.refresh-btn {
+.refresh-button {
   background: transparent;
   border: 1px solid #444;
   color: #888;
@@ -188,7 +188,7 @@ onUnmounted(() => {
   text-transform: uppercase;
 }
 
-.refresh-btn:hover:not(:disabled) {
+.refresh-button:hover:not(:disabled) {
   border-color: #9a8866;
   color: #9a8866;
 }
