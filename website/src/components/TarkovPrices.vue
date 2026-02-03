@@ -113,7 +113,7 @@ onUnmounted(() => {
       Last sync: <strong>{{ timeAgo }}</strong>
     </p>
 
-    <div v-if="fetching && items.length > 0" class="overlay-msg">
+    <div v-if="fetching" class="overlay-msg">
       <p>Updating data...</p>
     </div>
     <div v-else>
