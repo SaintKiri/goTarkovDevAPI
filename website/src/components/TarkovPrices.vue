@@ -1,9 +1,68 @@
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import wasmUrl from '@/assets/main.wasm?url';
 
-const loading = ref(true);
+const loading = ref(true); // wasm loaded into webpage?
+const fetching = ref(false); // price data fetched?
 const items = ref<any[]>([]);
+const lastUpdate = ref<string | null>(null);
+const lastUpdateTimestamp = ref<number | null>(null);
+const timeAgo = ref<string>('');
+
+const CACHE_KEY = 'tarkov_prices_data';
+const CACHE_TIME_KEY = 'tarkov_prices_timestamp';
+const FIVE_MINUTES = 5 * 60 * 1000;
+
+const updateRelTime = () => {
+  if (!lastUpdateTimestamp.value) return;
+
+  const now = Date.now();
+  const diffInSec = Math.floor((now - lastUpdateTimestamp.value) / 1000);
+
+  if (diffInSec < 60) {
+    timeAgo.value = 'Just Now';
+  } else {
+    const minutes = Math.floor(diffInSec / 60);
+    timeAgo.value = `${minutes}m ago`;
+  }
+};
+
+const fetchPrices = async (force = false) => {
+  const now = Date.now();
+  const cachedData = localStorage.getItem(CACHE_KEY);
+  const cacheTime = localStorage.getItem(CACHE_TIME_KEY);
+
+  // Check cache
+  if (!force && cachedData && cacheTime && (now - Number(cacheTime) < FIVE_MINUTES)) {
+    console.log("Loading from browser cache");
+    items.value = JSON.parse(cachedData);
+    lastUpdate.value = new Date(Number(cacheTime)).toLocaleTimeString();
+    lastUpdateTimestamp.value = Number(cacheTime);
+    loading.value = false;
+    updateRelTime();
+    return;
+  }
+
+  fetching.value = true;
+  try {
+    console.log("Fetching from API");
+    const rawData = await (window as any).getTarkovPrices();
+    items.value = JSON.parse(rawData);
+
+    // Set/update cache
+    localStorage.setItem(CACHE_KEY, rawData);
+    localStorage.setItem(CACHE_TIME_KEY, now.toString());
+
+    lastUpdate.value = new Date(Number(now)).toLocaleTimeString();
+    lastUpdateTimestamp.value = now;
+  } catch (error) {
+    console.error("API fetch failed:", error);
+  } finally {
+    fetching.value = false;
+  }
+
+  updateRelTime();
+};
 
 const loadWasmModule = async () => {
   try {
@@ -20,29 +79,43 @@ const loadWasmModule = async () => {
 
     // 3. Run the Go program (this executes main() and sets up your functions)
     go.run(instance);
-
-    loading.value = false;
     console.log("Wasm Ready!");
 
-    const rawData = await (window as any).getTarkovPrices();
-    items.value = JSON.parse(rawData);
+    await fetchPrices();
   } catch (error) {
     console.error("Wasm load failed:", error);
+  } finally {
     loading.value = false;
   }
 };
 
-onMounted(loadWasmModule);
+let timerInteral: any = null;
+onMounted(async () => {
+  await loadWasmModule();
+  timerInteral = setInterval(updateRelTime, 30000); // Update "ago" every 30 sec
+});
+// Timer cleanup
+onUnmounted(() => {
+  if (timerInteral) clearInterval(timerInteral);
+});
 </script>
 
 <template>
   <div>
-    <h2>Tarkov Prices</h2>
-
-    <div v-if="loading">
-      <p v-if="!items.length">Loading</p>
+    <div style="display:flex; align-items: center; gap: 15px;">
+      <h1>Tarkov Prices (PvE)</h1>
+      <button v-if="!loading" @click="fetchPrices(true)" :disabled="fetching">
+        {{ fetching ? 'Syncing...' : 'Refresh' }}
+      </button>
     </div>
 
+    <p v-if="timeAgo" style="font-size: 0.8rem; color: #888; margin-top: -10px;">
+      Last sync: <strong>{{ timeAgo }}</strong>
+    </p>
+
+    <div v-if="fetching && items.length > 0" class="overlay-msg">
+      <p>Updating data...</p>
+    </div>
     <div v-else>
       <ul>
         <li v-for="item in items" :key="item.shortName" class="item-row">
