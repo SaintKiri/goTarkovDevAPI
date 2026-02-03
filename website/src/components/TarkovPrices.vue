@@ -14,7 +14,7 @@ const CACHE_TIME_KEY = 'tarkov_prices_timestamp';
 const FIVE_MINUTES = 5 * 60 * 1000;
 
 const updateRelTime = () => {
-  if (!lastUpdateTimestamp.value) return;
+  if (!lastUpdateTimestamp.value) { timeAgo.value = 'Never'; return; }
 
   const now = Date.now();
   const diffInSec = Math.floor((now - lastUpdateTimestamp.value) / 1000);
@@ -55,13 +55,12 @@ const fetchPrices = async (force = false) => {
 
     lastUpdate.value = new Date(Number(now)).toLocaleTimeString();
     lastUpdateTimestamp.value = now;
+    updateRelTime();
   } catch (error) {
     console.error("API fetch failed:", error);
   } finally {
     fetching.value = false;
   }
-
-  updateRelTime();
 };
 
 const loadWasmModule = async () => {
@@ -89,14 +88,14 @@ const loadWasmModule = async () => {
   }
 };
 
-let timerInteral: any = null;
+let timerInterval: any = null;
 onMounted(async () => {
   await loadWasmModule();
-  timerInteral = setInterval(updateRelTime, 30000); // Update "ago" every 30 sec
+  timerInterval = setInterval(updateRelTime, 30000); // Update "ago" every 30 sec
 });
 // Timer cleanup
 onUnmounted(() => {
-  if (timerInteral) clearInterval(timerInteral);
+  if (timerInterval) clearInterval(timerInterval);
 });
 </script>
 
@@ -104,9 +103,6 @@ onUnmounted(() => {
   <div>
     <div style="display:flex; align-items: center; gap: 15px;">
       <h1>Tarkov Prices (PvE)</h1>
-      <button v-if="!loading" @click="fetchPrices(true)" :disabled="fetching">
-        {{ fetching ? 'Syncing...' : 'Refresh' }}
-      </button>
     </div>
 
     <div class="status-bar" :class="{ 'is-fetching': fetching }">
@@ -114,6 +110,9 @@ onUnmounted(() => {
       <span class="status-text">
         {{ fetching ? 'Syncing data...' : `Last sync: ${timeAgo}` }}
       </span>
+      <button v-if="!loading" @click="fetchPrices(true)" :disabled="fetching" class="refresh-button">
+        Refresh
+      </button>
     </div>
 
     <ul>
@@ -151,13 +150,15 @@ onUnmounted(() => {
 }
 
 .status-text {
+  flex-grow: 1;
   font-size: 0.85rem;
   color: #888;
   font-family: 'Courier New', Courier, monospace;
   /* Terminal feel */
 }
 
-.is-fetching .status-text .price {
+.is-fetching .status-text,
+.price {
   color: #9a8866;
   font-weight: bold;
 }
@@ -175,6 +176,21 @@ onUnmounted(() => {
   to {
     transform: rotate(360deg);
   }
+}
+
+.refresh-btn {
+  background: transparent;
+  border: 1px solid #444;
+  color: #888;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  border-color: #9a8866;
+  color: #9a8866;
 }
 
 .item-row {
