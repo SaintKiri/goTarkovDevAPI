@@ -109,28 +109,74 @@ onUnmounted(() => {
       </button>
     </div>
 
-    <p v-if="timeAgo" style="font-size: 0.8rem; color: #888; margin-top: -10px;">
-      Last sync: <strong>{{ timeAgo }}</strong>
-    </p>
+    <div class="status-bar" :class="{ 'is-fetching': fetching }">
+      <div v-if="fetching" class="spinner"></div>
+      <span class="status-text">
+        {{ fetching ? 'Syncing data...' : `Last sync: ${timeAgo}` }}
+      </span>
+    </div>
 
-    <div v-if="fetching" class="overlay-msg">
-      <p>Updating data...</p>
-    </div>
-    <div v-else>
-      <ul>
-        <li v-for="item in items" :key="item.shortName" class="item-row">
-          <img :src="item.iconLink" class="item-icon" />
-          {{ item.shortName }}
-          <span class="price">{{ item.bestPrice.toLocaleString() }} &#x20BD;</span>
-        </li>
-      </ul>
-      <!-- <h3>Raw Data Debug:</h3>
+    <ul>
+      <li v-for="item in items" :key="item.shortName" class="item-row">
+        <img :src="item.iconLink" class="item-icon" />
+        {{ item.shortName }}
+        <span class="price">{{ item.bestPrice.toLocaleString() }} &#x20BD;</span>
+      </li>
+    </ul>
+    <!-- <h3>Raw Data Debug:</h3>
       <pre>{{ JSON.stringify(items, null, 2) }}</pre> -->
-    </div>
   </div>
 </template>
 
 <style scoped>
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 30px;
+  /* Keeps layout stable */
+  margin-top: -10px;
+  margin-bottom: 15px;
+  padding: 0 10px;
+  border-left: 3px solid #555;
+  /* Default inactive border */
+  transition: all 0.3s ease;
+}
+
+/* Change style when fetching */
+.status-bar.is-fetching {
+  border-left-color: #9a8866;
+  /* Tarkov gold/tan */
+  background: rgba(154, 136, 102, 0.1);
+}
+
+.status-text {
+  font-size: 0.85rem;
+  color: #888;
+  font-family: 'Courier New', Courier, monospace;
+  /* Terminal feel */
+}
+
+.is-fetching .status-text .price {
+  color: #9a8866;
+  font-weight: bold;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(154, 136, 102, 0.2);
+  border-top-color: #9a8866;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .item-row {
   display: flex;
   align-items: center;
@@ -149,11 +195,5 @@ onUnmounted(() => {
   object-fit: contain;
   background: #333;
   border: 1px solid #555;
-}
-
-.price {
-  color: #9a8866;
-  /* Gold/Tan color like the Flea Market */
-  font-weight: bold;
 }
 </style>
