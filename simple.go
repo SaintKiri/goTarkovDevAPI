@@ -48,21 +48,6 @@ func getPricesWrapper(this js.Value, args []js.Value) any {
 	return promiseConstructor.New(handler)
 }
 
-// func printPrices() {
-// 	var result itemPrices = getPrices()
-// 	for _, item := range result.Data.Items {
-// 		var price int = item.Avg24hPrice
-// 		if price == 0 {
-// 			for _, vendorPrices := range item.SellFor {
-// 				if vendorPrices.PricesRUB > price {
-// 					price = vendorPrices.PricesRUB
-// 				}
-// 			}
-// 		}
-// 		fmt.Printf("Item: %s | Price: %d\n", item.ShortName, price)
-// 	}
-// }
-
 func getPrices() (itemPrices, error) {
 	queryString := `
 	{
@@ -125,6 +110,19 @@ func getPrices() (itemPrices, error) {
 		log.Fatalln(err)
 	}
 
+	for i := range result.Data.Items {
+		maxPrice := 0
+		for _, vendorPrices := range result.Data.Items[i].SellFor {
+			if vendorPrices.PricesRUB > maxPrice {
+				maxPrice = vendorPrices.PricesRUB
+			}
+		}
+		if result.Data.Items[i].Avg24hPrice > maxPrice {
+			maxPrice = result.Data.Items[i].Avg24hPrice
+		}
+		result.Data.Items[i].BestPrice = maxPrice
+	}
+
 	return result, err
 }
 
@@ -141,6 +139,7 @@ type itemPrices struct {
 			Avg24hPrice  int    `json:"avg24hPrice"`
 			High24hPrice int    `json:"high24hPrice"`
 			Low24hPrice  int    `json:"low24hPrice"`
+			BestPrice    int    `json:"bestPrice"`
 			SellFor      []struct {
 				PricesRUB int `json:"priceRUB"`
 			} `json:"sellFor"`

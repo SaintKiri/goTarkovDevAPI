@@ -5,4 +5,7 @@
 
 ## Acknowledgement
 [Tarkov.dev](https://tarkov.dev) for Tarkov's API
-[This guide](https://go.dev/wiki/WebAssembly) for compiling Go into WASM
+
+[Official guide](https://go.dev/wiki/WebAssembly) for compiling Go into WASM
+
+[This post](https://medium.com/@kiril2315/wxt-vue-go-wasm-build-modern-web-extensions-9ee245d0e971) for structuring
