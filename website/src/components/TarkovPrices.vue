@@ -13,6 +13,8 @@ const CACHE_KEY = 'tarkov_prices_data';
 const CACHE_TIME_KEY = 'tarkov_prices_timestamp';
 const FIVE_MINUTES = 5 * 60 * 1000;
 
+// TODO: autorefresh after 5 min
+
 const updateRelTime = () => {
   if (!lastUpdateTimestamp.value) { timeAgo.value = 'Never'; return; }
 
@@ -38,7 +40,7 @@ const fetchPrices = async (force = false) => {
     items.value = JSON.parse(cachedData);
     lastUpdate.value = new Date(Number(cacheTime)).toLocaleTimeString();
     lastUpdateTimestamp.value = Number(cacheTime);
-    loading.value = false;
+    loading.value = false; // TODO: Is this redundant?
     updateRelTime();
     return;
   }
@@ -197,7 +199,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   background: #1a1a1a;
   /* Dark Tarkov-style theme */
   padding: 8px;

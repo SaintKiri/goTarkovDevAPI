@@ -1,5 +1,5 @@
 # Go tarkov.dev API
-<!-- TODO: include a picture -->
+![Main screenshot](./art/screenshots/1.png)
 
 ## Setup
 `./goWasm.sh` to compile wasm
