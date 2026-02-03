@@ -37,12 +37,15 @@ func main() {
 			]
 			gameMode: pve
 		) {
-			id
 			shortName
+			iconLink
+			id
 			avg24hPrice
 			high24hPrice
 			low24hPrice
-			iconLink
+			sellFor {
+				priceRUB
+			}
 		}
 	}
 	`
@@ -68,7 +71,15 @@ func main() {
 	}
 
 	for _, item := range result.Data.Items {
-		fmt.Printf("Item: %s | Avg Price: %d\n", item.ShortName, item.Avg24hPrice)
+		var price int = item.Avg24hPrice
+		if price == 0 {
+			for _, vendorPrices := range item.SellFor {
+				if vendorPrices.PricesRUB > price {
+					price = vendorPrices.PricesRUB
+				}
+			}
+		}
+		fmt.Printf("Item: %s | Price: %d\n", item.ShortName, price)
 	}
 }
 
@@ -79,14 +90,15 @@ type graphqlRequest struct {
 type itmePricesPrices struct {
 	Data struct {
 		Items []struct {
-			Id           string `json:"id"`
 			ShortName    string `json:"shortName"`
+			IconLink     string `json:"iconLink"`
+			Id           string `json:"id"`
 			Avg24hPrice  int    `json:"avg24hPrice"`
 			High24hPrice int    `json:"high24hPrice"`
 			Low24hPrice  int    `json:"low24hPrice"`
-			IconLink     string `json:"iconLink"`
-			// FIXME: Bitcoin's price is 0
-			// TODO: Explore the sellFor field to fix ^
+			SellFor      []struct {
+				PricesRUB int `json:"priceRUB"`
+			} `json:"sellFor"`
 		} `json:"items"`
 	} `json:"data"`
 }
