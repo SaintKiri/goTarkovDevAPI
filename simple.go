@@ -1,16 +1,14 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
-	"io" 
 	"log"
 	"net/http"
-	// "strings"
-	"encoding/json"
-	"bytes"
 )
 
-func main()  {
+func main() {
 	queryString := `
 	{
 		items(
@@ -62,14 +60,16 @@ func main()  {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
+	defer resp.Body.Close()
+
+	var result itmePricesPrices
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		log.Fatalln(err)
 	}
-	bodyString := string(bodyBytes)
-	fmt.Println(bodyString)
 
-	defer resp.Body.Close()
+	for _, item := range result.Data.Items {
+		fmt.Printf("Item: %s | Avg Price: %d\n", item.ShortName, item.Avg24hPrice)
+	}
 }
 
 type graphqlRequest struct {
@@ -77,14 +77,16 @@ type graphqlRequest struct {
 }
 
 type itmePricesPrices struct {
-	data struct {
-		items []struct {
-			id string `json:"id"`
-			shortName string `json:"shortName"`
-			avg24hPrice int `json:"avg24hPrice"`
-			high24hPrice int `json:"high24hPrice"`
-			low24hPrice int `json:"low24hPrice"`
-			iconLink string `json:"iconLink"`
+	Data struct {
+		Items []struct {
+			Id           string `json:"id"`
+			ShortName    string `json:"shortName"`
+			Avg24hPrice  int    `json:"avg24hPrice"`
+			High24hPrice int    `json:"high24hPrice"`
+			Low24hPrice  int    `json:"low24hPrice"`
+			IconLink     string `json:"iconLink"`
+			// FIXME: Bitcoin's price is 0
+			// TODO: Explore the sellFor field to fix ^
 		} `json:"items"`
 	} `json:"data"`
 }
