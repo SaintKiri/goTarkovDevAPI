@@ -6,9 +6,64 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"syscall/js"
 )
 
 func main() {
+	// Use a channel to keep the program alive
+	keepAlive := make(chan struct{})
+
+	// Register the function
+	// The first argument "getTarkovPrices" MUST match window.getTarkovPrices()
+	js.Global().Set("getTarkovPrices", js.FuncOf(getPricesWrapper))
+
+	fmt.Println("Go functions registered!")
+	<-keepAlive
+}
+
+func getPricesWrapper(this js.Value, args []js.Value) any {
+	// We use a Promise-based approach because networking is asynchronous
+	handler := js.FuncOf(func(this js.Value, args []js.Value) any {
+		resolve := args[0]
+		reject := args[1]
+
+		// Run the logic in a goroutine so we don't block the main thread
+		go func() {
+			result, err := getPrices()
+			if err != nil {
+				reject.Invoke(js.ValueOf(err.Error()))
+				return
+			}
+
+			// Convert the Go struct to a JSON string to pass back to JS
+			// Alternatively, you could build a js.Value object manually
+			jsonBytes, _ := json.Marshal(result.Data.Items)
+			resolve.Invoke(js.ValueOf(string(jsonBytes)))
+		}()
+
+		return nil
+	})
+
+	promiseConstructor := js.Global().Get("Promise")
+	return promiseConstructor.New(handler)
+}
+
+// func printPrices() {
+// 	var result itemPrices = getPrices()
+// 	for _, item := range result.Data.Items {
+// 		var price int = item.Avg24hPrice
+// 		if price == 0 {
+// 			for _, vendorPrices := range item.SellFor {
+// 				if vendorPrices.PricesRUB > price {
+// 					price = vendorPrices.PricesRUB
+// 				}
+// 			}
+// 		}
+// 		fmt.Printf("Item: %s | Price: %d\n", item.ShortName, price)
+// 	}
+// }
+
+func getPrices() (itemPrices, error) {
 	queryString := `
 	{
 		items(
@@ -65,29 +120,19 @@ func main() {
 	}
 	defer resp.Body.Close()
 
-	var result itmePricesPrices
+	var result itemPrices
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		log.Fatalln(err)
 	}
 
-	for _, item := range result.Data.Items {
-		var price int = item.Avg24hPrice
-		if price == 0 {
-			for _, vendorPrices := range item.SellFor {
-				if vendorPrices.PricesRUB > price {
-					price = vendorPrices.PricesRUB
-				}
-			}
-		}
-		fmt.Printf("Item: %s | Price: %d\n", item.ShortName, price)
-	}
+	return result, err
 }
 
 type graphqlRequest struct {
 	Query string `json:"query"`
 }
 
-type itmePricesPrices struct {
+type itemPrices struct {
 	Data struct {
 		Items []struct {
 			ShortName    string `json:"shortName"`
