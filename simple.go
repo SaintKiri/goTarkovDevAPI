@@ -49,6 +49,7 @@ func getPricesWrapper(this js.Value, args []js.Value) any {
 }
 
 func getPrices() (itemPrices, error) {
+	// TODO: move the query into a separate file?
 	queryString := `
 	{
 		items(

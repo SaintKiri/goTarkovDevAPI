@@ -11,10 +11,12 @@ const timeAgo = ref<string>('');
 
 const CACHE_KEY = 'tarkov_prices_data';
 const CACHE_TIME_KEY = 'tarkov_prices_timestamp';
+
 const FIVE_MINUTES = 5 * 60 * 1000;
+const ONE_MINUTE = 1 * 60 * 1000;
+const THIRTY_SEC = 30 * 1000;
 
-// TODO: autorefresh after 5 min
-
+// Display in status bar
 const updateRelTime = () => {
   if (!lastUpdateTimestamp.value) { timeAgo.value = 'Never'; return; }
 
@@ -28,6 +30,18 @@ const updateRelTime = () => {
     timeAgo.value = `${minutes}m ago`;
   }
 };
+
+const autoRefresh = () => {
+  if (!lastUpdateTimestamp.value || fetching.value) return;
+
+  const now = Date.now();
+  const diff = now - lastUpdateTimestamp.value;
+
+  if (diff >= FIVE_MINUTES) {
+    console.log("Auto refreshing...");
+    fetchPrices(true);
+  }
+}
 
 const fetchPrices = async (force = false) => {
   const now = Date.now();
@@ -91,13 +105,16 @@ const loadWasmModule = async () => {
 };
 
 let timerInterval: any = null;
+let autoRefreshInterval: any = null;
 onMounted(async () => {
   await loadWasmModule();
-  timerInterval = setInterval(updateRelTime, 30000); // Update "ago" every 30 sec
+  timerInterval = setInterval(updateRelTime, THIRTY_SEC); // Update "ago" every 30 sec
+  autoRefreshInterval = setInterval(autoRefresh, ONE_MINUTE); // every 1 min
 });
 // Timer cleanup
 onUnmounted(() => {
   if (timerInterval) clearInterval(timerInterval);
+  if (autoRefreshInterval) clearInterval(autoRefreshInterval);
 });
 </script>
 
