@@ -1,5 +1,7 @@
 # Go tarkov.dev API
+
 Using Vue to display Tarkov item prices via Wasm compiled from Go
+
 ![Main screenshot](./art/screenshots/1.png)
 
 ## Setup
