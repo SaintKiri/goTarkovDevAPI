@@ -35,8 +35,6 @@ func getPricesWrapper(this js.Value, args []js.Value) any {
 				return
 			}
 
-			// Convert the Go struct to a JSON string to pass back to JS
-			// Alternatively, you could build a js.Value object manually
 			jsonBytes, _ := json.Marshal(result.Data.Items)
 			resolve.Invoke(js.ValueOf(string(jsonBytes)))
 		}()
@@ -49,8 +47,63 @@ func getPricesWrapper(this js.Value, args []js.Value) any {
 }
 
 func getPrices() (itemPrices, error) {
-	// TODO: move the query into a separate file?
-	queryString := `
+	payload := graphqlRequest{Query: queryString}
+	body, _ := json.Marshal(payload)
+
+	req, err := http.NewRequest("POST", "https://api.tarkov.dev/graphql", bytes.NewBuffer(body))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer resp.Body.Close()
+
+	var result itemPrices
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		log.Fatalln(err)
+	}
+
+	for i := range result.Data.Items {
+		maxPrice := 0
+		for _, vendorPrices := range result.Data.Items[i].SellFor {
+			if vendorPrices.PricesRUB > maxPrice {
+				maxPrice = vendorPrices.PricesRUB
+			}
+		}
+		if result.Data.Items[i].LastLowPrice > maxPrice {
+			maxPrice = result.Data.Items[i].LastLowPrice
+		}
+		result.Data.Items[i].BestPrice = maxPrice
+	}
+
+	return result, err
+}
+
+type graphqlRequest struct {
+	Query string `json:"query"`
+}
+
+type itemPrices struct {
+	Data struct {
+		Items []struct {
+			ShortName    string `json:"shortName"`
+			IconLink     string `json:"iconLink"`
+			Id           string `json:"id"`
+			BestPrice    int    `json:"bestPrice"` // Best selling price
+			LastLowPrice int    `json:"lastLowPrice"`
+			SellFor      []struct {
+				PricesRUB int `json:"priceRUB"`
+			} `json:"sellFor"`
+		} `json:"items"`
+	} `json:"data"`
+}
+
+const queryString = `
 	{
 		items(
 			lang: en
@@ -81,69 +134,10 @@ func getPrices() (itemPrices, error) {
 			shortName
 			iconLink
 			id
-			avg24hPrice
-			high24hPrice
-			low24hPrice
+			lastLowPrice
 			sellFor {
 				priceRUB
 			}
 		}
 	}
 	`
-	payload := graphqlRequest{Query: queryString}
-	body, _ := json.Marshal(payload)
-
-	req, err := http.NewRequest("POST", "https://api.tarkov.dev/graphql", bytes.NewBuffer(body))
-	if err != nil {
-		log.Fatalln(err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer resp.Body.Close()
-
-	var result itemPrices
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		log.Fatalln(err)
-	}
-
-	for i := range result.Data.Items {
-		maxPrice := 0
-		for _, vendorPrices := range result.Data.Items[i].SellFor {
-			if vendorPrices.PricesRUB > maxPrice {
-				maxPrice = vendorPrices.PricesRUB
-			}
-		}
-		if result.Data.Items[i].Avg24hPrice > maxPrice {
-			maxPrice = result.Data.Items[i].Avg24hPrice
-		}
-		result.Data.Items[i].BestPrice = maxPrice
-	}
-
-	return result, err
-}
-
-type graphqlRequest struct {
-	Query string `json:"query"`
-}
-
-type itemPrices struct {
-	Data struct {
-		Items []struct {
-			ShortName    string `json:"shortName"`
-			IconLink     string `json:"iconLink"`
-			Id           string `json:"id"`
-			Avg24hPrice  int    `json:"avg24hPrice"`
-			High24hPrice int    `json:"high24hPrice"`
-			Low24hPrice  int    `json:"low24hPrice"`
-			BestPrice    int    `json:"bestPrice"`
-			SellFor      []struct {
-				PricesRUB int `json:"priceRUB"`
-			} `json:"sellFor"`
-		} `json:"items"`
-	} `json:"data"`
-}
