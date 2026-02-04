@@ -5,7 +5,6 @@ import wasmUrl from '@/assets/main.wasm?url';
 const loading = ref(true); // wasm loaded into webpage?
 const fetching = ref(false); // price data fetched?
 const items = ref<any[]>([]);
-const lastUpdate = ref<string | null>(null);
 const lastUpdateTimestamp = ref<number | null>(null);
 const timeAgo = ref<string>('');
 
@@ -52,9 +51,7 @@ const fetchPrices = async (force = false) => {
   if (!force && cachedData && cacheTime && (now - Number(cacheTime) < FIVE_MINUTES)) {
     console.log("Loading from browser cache");
     items.value = JSON.parse(cachedData);
-    lastUpdate.value = new Date(Number(cacheTime)).toLocaleTimeString();
     lastUpdateTimestamp.value = Number(cacheTime);
-    loading.value = false; // TODO: Is this redundant?
     updateRelTime();
     return;
   }
@@ -69,7 +66,6 @@ const fetchPrices = async (force = false) => {
     localStorage.setItem(CACHE_KEY, rawData);
     localStorage.setItem(CACHE_TIME_KEY, now.toString());
 
-    lastUpdate.value = new Date(Number(now)).toLocaleTimeString();
     lastUpdateTimestamp.value = now;
     updateRelTime();
   } catch (error) {
@@ -113,8 +109,8 @@ onMounted(async () => {
 });
 // Timer cleanup
 onUnmounted(() => {
-  if (timerInterval) clearInterval(timerInterval);
-  if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+  clearInterval(timerInterval);
+  clearInterval(autoRefreshInterval);
 });
 </script>
 
