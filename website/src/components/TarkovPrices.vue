@@ -105,7 +105,7 @@ let autoRefreshInterval: any = null;
 onMounted(async () => {
   await loadWasmModule();
   timerInterval = setInterval(updateRelTime, THIRTY_SEC); // Update "ago" every 30 sec
-  autoRefreshInterval = setInterval(autoRefresh, ONE_MINUTE); // every 1 min
+  autoRefreshInterval = setInterval(autoRefresh, ONE_MINUTE); // autorefresh data every 1 min
 });
 // Timer cleanup
 onUnmounted(() => {
@@ -123,7 +123,9 @@ onUnmounted(() => {
     <div class="status-bar" :class="{ 'is-fetching': fetching }">
       <div v-if="fetching" class="spinner"></div>
       <span class="status-text">
-        {{ fetching ? 'Syncing data...' : `Last sync: ${timeAgo}` }}
+        <template v-if="fetching">Syncing data...</template>
+        <template v-else-if="timeAgo">{{ `Last sync: ${timeAgo}` }}</template>
+        <template v-else>Initializing...</template>
       </span>
       <button v-if="!loading" @click="fetchPrices(true)" :disabled="fetching" class="refresh-button">
         Refresh

@@ -46,6 +46,7 @@ func getPricesWrapper(this js.Value, args []js.Value) any {
 	return promiseConstructor.New(handler)
 }
 
+// TODO: handle error if the api is down
 func getPrices() (itemPrices, error) {
 	payload := graphqlRequest{Query: queryString}
 	body, _ := json.Marshal(payload)
