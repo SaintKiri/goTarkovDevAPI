@@ -16,6 +16,7 @@ func main() {
 	// Register the function
 	// The first argument "getTarkovPrices" MUST match window.getTarkovPrices()
 	js.Global().Set("getTarkovPrices", js.FuncOf(getPricesWrapper))
+	js.Global().Set("getTarkovRecipes", js.FuncOf(getRecipesWrapper))
 
 	fmt.Println("Go functions registered!")
 	<-keepAlive
@@ -48,7 +49,7 @@ func getPricesWrapper(this js.Value, args []js.Value) any {
 
 // TODO: handle error if the api is down
 func getPrices() (itemPrices, error) {
-	payload := graphqlRequest{Query: queryString}
+	payload := graphqlRequest{Query: pricesString}
 	body, _ := json.Marshal(payload)
 
 	req, err := http.NewRequest("POST", "https://api.tarkov.dev/graphql", bytes.NewBuffer(body))
@@ -85,6 +86,54 @@ func getPrices() (itemPrices, error) {
 	return result, err
 }
 
+func getRecipesWrapper(this js.Value, args []js.Value) any {
+	handler := js.FuncOf(func(this js.Value, args []js.Value) any {
+		resolve := args[0]
+		reject := args[1]
+
+		go func() {
+			result, err := getRecipes()
+			if err != nil {
+				reject.Invoke(js.ValueOf(err.Error()))
+				return
+			}
+
+			jsonBytes, _ := json.Marshal(result.Data.Items)
+			resolve.Invoke(js.ValueOf(string(jsonBytes)))
+		}()
+
+		return nil
+	})
+
+	promiseConstructor := js.Global().Get("Promise")
+	return promiseConstructor.New(handler)
+}
+
+func getRecipes() (itemRecipes, error) {
+	payload := graphqlRequest{Query: recipesString}
+	body, _ := json.Marshal(payload)
+
+	req, err := http.NewRequest("POST", "https://api.tarkov.dev/graphql", bytes.NewBuffer(body))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer resp.Body.Close()
+
+	var result itemRecipes
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		log.Fatalln(err)
+	}
+
+	return result, err
+}
+
 type graphqlRequest struct {
 	Query string `json:"query"`
 }
@@ -104,7 +153,7 @@ type itemPrices struct {
 	} `json:"data"`
 }
 
-const queryString = `
+const pricesString = `
 	{
 		items(
 			lang: en
@@ -138,6 +187,51 @@ const queryString = `
 			lastLowPrice
 			sellFor {
 				priceRUB
+			}
+		}
+	}
+	`
+
+type itemRecipes struct {
+	Data struct {
+		Items []struct {
+			Name       string `json:"name"`
+			ShortName  string `json:"shortName"`
+			IconLink   string `json:"iconLink"`
+			Id         string `json:"id"`
+			BartersFor []struct {
+				RequiredItems []struct {
+					Quantity int `json:"quantity"`
+					Item     struct {
+						ShortName string `json:"shortName"`
+						IconLink  string `json:"iconLink"`
+						Id        string `json:"id"`
+					} `json:"item"`
+				} `json:"requiredItems"`
+			} `json:"bartersFor"`
+		} `json:"items"`
+	} `json:"data"`
+}
+
+const recipesString = `	
+	{
+		items(
+			lang: en
+			ids: ["5b6d9ce188a4501afc1b2b25", "5c0a840b86f7742ffa4f2482"]
+			gameMode: pve
+		) {
+			name
+			shortName
+			iconLink
+			bartersFor {
+				requiredItems {
+					item {
+						shortName
+						iconLink
+						id
+					}
+					quantity
+				}
 			}
 		}
 	}

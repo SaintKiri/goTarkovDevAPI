@@ -1,10 +1,11 @@
 <script lang="ts" setup>
-import { onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import wasmUrl from '@/assets/main.wasm?url';
 
 const loading = ref(true); // wasm loaded into webpage?
 const fetching = ref(false); // price data fetched?
 const items = ref<any[]>([]);
+const recipeItems = ref<any[]>([]);
 const lastUpdateTimestamp = ref<number | null>(null);
 const timeAgo = ref<string>('');
 
@@ -38,11 +39,11 @@ const autoRefresh = () => {
 
   if (diff >= FIVE_MINUTES) {
     console.log("Auto refreshing...");
-    fetchPrices(true);
+    fetchData(true);
   }
 }
 
-const fetchPrices = async (force = false) => {
+const fetchData = async (force = false) => {
   const now = Date.now();
   const cachedData = localStorage.getItem(CACHE_KEY);
   const cacheTime = localStorage.getItem(CACHE_TIME_KEY);
@@ -50,7 +51,9 @@ const fetchPrices = async (force = false) => {
   // Check cache
   if (!force && cachedData && cacheTime && (now - Number(cacheTime) < FIVE_MINUTES)) {
     console.log("Loading from browser cache");
-    items.value = JSON.parse(cachedData);
+    const parsed = JSON.parse(cachedData);
+    items.value = parsed.prices;
+    recipeItems.value = parsed.recipes;
     lastUpdateTimestamp.value = Number(cacheTime);
     updateRelTime();
     return;
@@ -59,11 +62,20 @@ const fetchPrices = async (force = false) => {
   fetching.value = true;
   try {
     console.log("Fetching from API");
-    const rawData = await (window as any).getTarkovPrices();
-    items.value = JSON.parse(rawData);
+    const pricesRawData = await (window as any).getTarkovPrices();
+    const recipesRawData = await (window as any).getTarkovRecipes();
+    const parsedPrices = JSON.parse(pricesRawData);
+    const parsedRecipes = JSON.parse(recipesRawData);
+    items.value = parsedPrices;
+    recipeItems.value = parsedRecipes;
+
+    const combinedData = {
+      prices: parsedPrices,
+      recipes: parsedRecipes
+    };
 
     // Set/update cache
-    localStorage.setItem(CACHE_KEY, rawData);
+    localStorage.setItem(CACHE_KEY, JSON.stringify(combinedData));
     localStorage.setItem(CACHE_TIME_KEY, now.toString());
 
     lastUpdateTimestamp.value = now;
@@ -92,7 +104,7 @@ const loadWasmModule = async () => {
     go.run(instance);
     console.log("Wasm Ready!");
 
-    await fetchPrices();
+    await fetchData();
   } catch (error) {
     console.error("Wasm load failed:", error);
   } finally {
@@ -104,6 +116,7 @@ let timerInterval: any = null;
 let autoRefreshInterval: any = null;
 onMounted(async () => {
   await loadWasmModule();
+  localStorage.clear(); // Clear cached data
   timerInterval = setInterval(updateRelTime, THIRTY_SEC); // Update "ago" every 30 sec
   autoRefreshInterval = setInterval(autoRefresh, ONE_MINUTE); // autorefresh data every 1 min
 });
@@ -127,18 +140,40 @@ onUnmounted(() => {
         <template v-else-if="timeAgo">{{ `Last sync: ${timeAgo}` }}</template>
         <template v-else>Initializing...</template>
       </span>
-      <button v-if="!loading" @click="fetchPrices(true)" :disabled="fetching" class="refresh-button">
+      <button v-if="!loading" @click="fetchData(true)" :disabled="fetching" class="refresh-button">
         Refresh
       </button>
     </div>
 
-    <ul>
-      <li v-for="item in items" :key="item.shortName" class="item-row">
-        <img :src="item.iconLink" class="item-icon" />
-        {{ item.shortName }}
-        <span class="price">{{ item.bestPrice.toLocaleString() }} &#x20BD;</span>
-      </li>
-    </ul>
+    <div class="list-container">
+      <ul>
+        <h3>Item Watchlist</h3>
+        <li v-for="item in items" :key="item.shortName" class="item-row">
+          <img :src="item.iconLink" class="item-icon" />
+          {{ item.shortName }}
+          <span class="price">{{ item.bestPrice.toLocaleString() }} &#x20BD;</span>
+        </li>
+      </ul>
+
+      <ul>
+        <h3>Recipe Products</h3>
+        <li v-for="recipe in recipeItems" :key="recipe.id" class="recipe-card">
+          <div class="item-row">
+            <img :src="recipe.iconLink" class="item-icon">
+            <strong>{{ recipe.name }}</strong>
+          </div>
+
+          <div v-for="(barter, index) in recipe.bartersFor" :key="index" class="requirements-list">
+            <div v-for="req in barter.requiredItems" :key="req.item.id" class="requirement-row">
+              <img :src="req.item.iconLink" class="req-icon" />
+              <span class="qty">{{ req.quantity }}x</span>
+              <span>{{ req.item.shortName }}</span>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </div>
+
     <!-- <h3>Raw Data Debug:</h3>
       <pre>{{ JSON.stringify(items, null, 2) }}</pre> -->
   </div>
@@ -210,6 +245,19 @@ onUnmounted(() => {
   color: #9a8866;
 }
 
+.list-container {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  margin: 0 auto;
+  list-style-type: none;
+}
+
+ul {
+  padding: 0;
+  margin: 0;
+}
+
 .item-row {
   display: flex;
   align-items: center;
@@ -228,5 +276,38 @@ onUnmounted(() => {
   object-fit: contain;
   background: #333;
   border: 1px solid #555;
+}
+
+.recipe-card {
+  list-style: none;
+  margin-bottom: 20px;
+  background: #1a1a1a;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.requirements-list {
+  margin-top: 8px;
+  padding-left: 20px;
+  border-left: 1px solid #444;
+}
+
+.requirement-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #bbb;
+  margin-top: 4px;
+}
+
+.req-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.qty {
+  color: #9a8866; /* Tarkov gold */
+  font-weight: bold;
 }
 </style>
