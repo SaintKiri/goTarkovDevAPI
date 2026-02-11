@@ -170,7 +170,7 @@ onUnmounted(() => {
       </button>
     </div>
 
-    <div class="list-container">
+    <div v-if="!loading" class="list-container">
       <ul>
         <h3>Item Watchlist</h3>
         <li v-for="item in items" :key="item.shortName" class="item-row">
