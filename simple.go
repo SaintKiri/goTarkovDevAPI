@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"syscall/js"
 )
@@ -20,6 +19,26 @@ func main() {
 
 	fmt.Println("Go functions registered!")
 	<-keepAlive
+}
+
+func sendQuery(query string, target interface{}) error {
+	payload := graphqlRequest{Query: query}
+	body, _ := json.Marshal(payload)
+
+	req, err := http.NewRequest("POST", "https://api.tarkov.dev/graphql", bytes.NewBuffer(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return json.NewDecoder(resp.Body).Decode(target)
 }
 
 func getPricesWrapper(this js.Value, args []js.Value) any {
@@ -49,25 +68,10 @@ func getPricesWrapper(this js.Value, args []js.Value) any {
 
 // TODO: handle error if the api is down
 func getPrices() (itemPrices, error) {
-	payload := graphqlRequest{Query: pricesString}
-	body, _ := json.Marshal(payload)
-
-	req, err := http.NewRequest("POST", "https://api.tarkov.dev/graphql", bytes.NewBuffer(body))
-	if err != nil {
-		log.Fatalln(err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer resp.Body.Close()
-
 	var result itemPrices
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		log.Fatalln(err)
+	err := sendQuery(pricesString, &result)
+	if err != nil {
+		return result, err
 	}
 
 	for i := range result.Data.Items {
@@ -83,7 +87,7 @@ func getPrices() (itemPrices, error) {
 		result.Data.Items[i].BestPrice = maxPrice
 	}
 
-	return result, err
+	return result, nil
 }
 
 func getRecipesWrapper(this js.Value, args []js.Value) any {
@@ -110,27 +114,8 @@ func getRecipesWrapper(this js.Value, args []js.Value) any {
 }
 
 func getRecipes() (itemRecipes, error) {
-	payload := graphqlRequest{Query: recipesString}
-	body, _ := json.Marshal(payload)
-
-	req, err := http.NewRequest("POST", "https://api.tarkov.dev/graphql", bytes.NewBuffer(body))
-	if err != nil {
-		log.Fatalln(err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer resp.Body.Close()
-
 	var result itemRecipes
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		log.Fatalln(err)
-	}
-
+	err := sendQuery(recipesString, &result)
 	return result, err
 }
 

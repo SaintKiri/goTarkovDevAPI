@@ -23,9 +23,7 @@ const priceMap = computed(() => {
   });
   return map;
 });
-const getItemPrice = (id: string) => {
-  return priceMap.value[id] || 0;
-};
+const getItemPrice = (id: string) => priceMap.value[id] || 0;
 const calculateBarterTotal = (requiredItems: any[]) => {
   return requiredItems.reduce((sum, req) => {
     const unitPrice = priceMap.value[req.item.id] || 0;
