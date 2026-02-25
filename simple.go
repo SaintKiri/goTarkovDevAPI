@@ -14,8 +14,18 @@ func main() {
 
 	// Register the function
 	// The first argument "getTarkovPrices" MUST match window.getTarkovPrices()
-	js.Global().Set("getTarkovPrices", js.FuncOf(getPricesWrapper))
-	js.Global().Set("getTarkovRecipes", js.FuncOf(getRecipesWrapper))
+	js.Global().Set("getTarkovPrices", js.FuncOf(func(this js.Value, args []js.Value) any {
+		return runAsPromise(func() (any, error) {
+			res, err := getPrices()
+			return res.Data.Items, err
+		})
+	}))
+	js.Global().Set("getTarkovRecipes", js.FuncOf(func(this js.Value, args []js.Value) any {
+		return runAsPromise(func() (any, error) {
+			res, err := getRecipes()
+			return res.Data.Items, err
+		})
+	}))
 
 	fmt.Println("Go functions registered!")
 	<-keepAlive
@@ -41,29 +51,24 @@ func sendQuery(query string, target interface{}) error {
 	return json.NewDecoder(resp.Body).Decode(target)
 }
 
-func getPricesWrapper(this js.Value, args []js.Value) any {
-	// We use a Promise-based approach because networking is asynchronous
+func runAsPromise(fetchFunc func() (any, error)) js.Value {
 	handler := js.FuncOf(func(this js.Value, args []js.Value) any {
 		resolve := args[0]
 		reject := args[1]
 
-		// Run the logic in a goroutine so we don't block the main thread
 		go func() {
-			result, err := getPrices()
+			data, err := fetchFunc()
 			if err != nil {
 				reject.Invoke(js.ValueOf(err.Error()))
 				return
 			}
 
-			jsonBytes, _ := json.Marshal(result.Data.Items)
+			jsonBytes, _ := json.Marshal(data)
 			resolve.Invoke(js.ValueOf(string(jsonBytes)))
 		}()
-
 		return nil
 	})
-
-	promiseConstructor := js.Global().Get("Promise")
-	return promiseConstructor.New(handler)
+	return js.Global().Get("Promise").New(handler)
 }
 
 // TODO: handle error if the api is down
@@ -88,29 +93,6 @@ func getPrices() (itemPrices, error) {
 	}
 
 	return result, nil
-}
-
-func getRecipesWrapper(this js.Value, args []js.Value) any {
-	handler := js.FuncOf(func(this js.Value, args []js.Value) any {
-		resolve := args[0]
-		reject := args[1]
-
-		go func() {
-			result, err := getRecipes()
-			if err != nil {
-				reject.Invoke(js.ValueOf(err.Error()))
-				return
-			}
-
-			jsonBytes, _ := json.Marshal(result.Data.Items)
-			resolve.Invoke(js.ValueOf(string(jsonBytes)))
-		}()
-
-		return nil
-	})
-
-	promiseConstructor := js.Global().Get("Promise")
-	return promiseConstructor.New(handler)
 }
 
 func getRecipes() (itemRecipes, error) {
