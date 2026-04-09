@@ -16,29 +16,6 @@ const FIVE_MINUTES = 5 * 60 * 1000;
 const ONE_MINUTE = 1 * 60 * 1000;
 const THIRTY_SEC = 30 * 1000;
 
-const priceMap = computed(() => {
-  const map: Record<string, number> = {};
-  items.value.forEach(item => {
-    map[item.id] = item.bestPrice;
-  });
-  return map;
-});
-const getItemPrice = (id: string) => priceMap.value[id] || 0;
-const calculateBarterTotal = (requiredItems: any[]) => {
-  return requiredItems.reduce((sum, req) => {
-    const unitPrice = priceMap.value[req.item.id] || 0;
-    return sum + (unitPrice * req.quantity);
-  }, 0);
-};
-
-const getBestBarterIndex = (barters: any[]) => {
-  if (!barters || barters.length <= 1) return 0;
-
-  const cost = barters.map(b => calculateBarterTotal(b.requiredItems));
-
-  return cost.indexOf(Math.min(...cost));
-};
-
 // Display in status bar
 const updateRelTime = () => {
   if (!lastUpdateTimestamp.value) { timeAgo.value = 'Never'; return; }
@@ -187,21 +164,17 @@ onUnmounted(() => {
           </div>
 
           <div v-for="(barter, index) in recipe.bartersFor" :key="index" class="requirements-list"
-            :class="{ 'is-best-price': index === getBestBarterIndex(recipe.bartersFor.filter((b: { requiredItems: any[]; }) => calculateBarterTotal(b.requiredItems) > 0)) }">
+            :class="{ 'is-best-price': barter.isBestOption }">
             <div v-for="req in barter.requiredItems" :key="req.item.id" class="requirement-row">
               <img :src="req.item.iconLink" class="req-icon" />
               <span class="qty">{{ req.quantity }}x</span>
               <span class="name">{{ req.item.shortName }}</span>
-
-              <span class="price">
-                = {{ (getItemPrice(req.item.id) * req.quantity).toLocaleString() }} &#x20BD;
-              </span>
             </div>
 
             <div class="total-row">
               <span>Total Cost: </span>
               <span class="price">
-                {{ calculateBarterTotal(barter.requiredItems).toLocaleString() }} &#x20BD;
+                {{ barter.totalCost.toLocaleString() }} &#x20BD;
               </span>
             </div>
           </div>
@@ -209,8 +182,9 @@ onUnmounted(() => {
       </ul>
     </div>
 
-    <!-- <h3>Raw Data Debug:</h3>
-      <pre>{{ JSON.stringify(items, null, 2) }}</pre> -->
+    <!-- <h3>Raw Data Debug:</h3> -->
+    <!-- <pre>{{ JSON.stringify(items, null, 2) }}</pre> -->
+    <!-- <pre>{{ JSON.stringify(recipeItems, null, 2) }}</pre> -->
   </div>
 </template>
 

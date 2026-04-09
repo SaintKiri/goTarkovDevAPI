@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"syscall/js"
 )
 
@@ -89,6 +90,7 @@ func getPrices() (itemPrices, error) {
 		if result.Data.Items[i].LastLowPrice > maxPrice {
 			maxPrice = result.Data.Items[i].LastLowPrice
 		}
+		// FIXME: calculate recipe items that are part of another recipe's barter item
 		result.Data.Items[i].BestPrice = maxPrice
 	}
 
@@ -96,9 +98,67 @@ func getPrices() (itemPrices, error) {
 }
 
 func getRecipes() (itemRecipes, error) {
-	var result itemRecipes
-	err := sendQuery(recipesString, &result)
-	return result, err
+	var recipeResult itemRecipes
+	var priceResult itemPrices
+	var wg sync.WaitGroup
+	var recipeErr, priceErr error
+
+	// Concurrent data fetch
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		recipeErr = sendQuery(recipesString, &recipeResult)
+	}()
+	go func() {
+		defer wg.Done()
+		priceResult, priceErr = getPrices()
+	}()
+	wg.Wait()
+
+	if recipeErr != nil {
+		return recipeResult, recipeErr
+	}
+	if priceErr != nil {
+		return recipeResult, priceErr
+	}
+
+	// Map best price for each item
+	priceMap := make(map[string]int)
+	for _, item := range priceResult.Data.Items {
+		priceMap[item.Id] = item.BestPrice
+	}
+
+	// TODO: see if it's possible to merge the logic
+	// Calculate recipe cost
+	for i := range recipeResult.Data.Items {
+		for j := range recipeResult.Data.Items[i].BartersFor {
+			recipe := &recipeResult.Data.Items[i].BartersFor[j]
+			cost := &recipe.TotalCost
+
+			for k := range recipe.RequiredItems {
+				item := &recipe.RequiredItems[k]
+				*cost += item.Quantity * priceMap[item.Item.Id]
+			}
+		}
+	}
+
+	// Determine cheapest recipe
+	for i := range recipeResult.Data.Items {
+		recipe := recipeResult.Data.Items[i].BartersFor
+		if len(recipe) == 0 {
+			continue
+		}
+
+		cheapestIndex := 0
+		for j := 1; j < len(recipe); j++ {
+			if recipe[j].TotalCost < recipe[cheapestIndex].TotalCost {
+				cheapestIndex = j
+			}
+		}
+		recipeResult.Data.Items[i].BartersFor[cheapestIndex].IsBestOption = true
+	}
+
+	return recipeResult, nil
 }
 
 type graphqlRequest struct {
@@ -167,7 +227,6 @@ type itemRecipes struct {
 			Name       string `json:"name"`
 			ShortName  string `json:"shortName"`
 			IconLink   string `json:"iconLink"`
-			Id         string `json:"id"`
 			BartersFor []struct {
 				RequiredItems []struct {
 					Quantity int `json:"quantity"`
@@ -177,6 +236,8 @@ type itemRecipes struct {
 						Id        string `json:"id"`
 					} `json:"item"`
 				} `json:"requiredItems"`
+				TotalCost    int  `json:"totalCost"`    // Sum of all required items' cost
+				IsBestOption bool `json:"isBestOption"` // true, if this recipe is the cheapest
 			} `json:"bartersFor"`
 		} `json:"items"`
 	} `json:"data"`
