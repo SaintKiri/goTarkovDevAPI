@@ -151,7 +151,7 @@ func getRecipes() (itemRecipes, error) {
 
 		cheapestIndex := 0
 		for j := 1; j < len(recipe); j++ {
-			if recipe[j].TotalCost < recipe[cheapestIndex].TotalCost {
+			if recipe[j].TotalCost > 0 && recipe[j].TotalCost < recipe[cheapestIndex].TotalCost {
 				cheapestIndex = j
 			}
 		}
