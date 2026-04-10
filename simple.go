@@ -32,7 +32,10 @@ func main() {
 	<-keepAlive
 }
 
-func sendQuery(query string, target interface{}) error {
+// sendQuery loads an unmarshalled json into target. Returns an error if there is one.
+//
+// This function assumes query is a valid one that has been pre-tested before it is called.
+func sendQuery(query string, target any) error {
 	payload := graphqlRequest{Query: query}
 	body, _ := json.Marshal(payload)
 
@@ -52,6 +55,7 @@ func sendQuery(query string, target interface{}) error {
 	return json.NewDecoder(resp.Body).Decode(target)
 }
 
+// runAsPromise
 func runAsPromise(fetchFunc func() (any, error)) js.Value {
 	handler := js.FuncOf(func(this js.Value, args []js.Value) any {
 		resolve := args[0]
@@ -114,7 +118,6 @@ func getRecipes() (itemRecipes, error) {
 		priceResult, priceErr = getPrices()
 	}()
 	wg.Wait()
-
 	if recipeErr != nil {
 		return recipeResult, recipeErr
 	}
@@ -145,9 +148,6 @@ func getRecipes() (itemRecipes, error) {
 	// Determine cheapest recipe
 	for i := range recipeResult.Data.Items {
 		recipe := recipeResult.Data.Items[i].BartersFor
-		if len(recipe) == 0 {
-			continue
-		}
 
 		cheapestIndex := 0
 		for j := 1; j < len(recipe); j++ {
