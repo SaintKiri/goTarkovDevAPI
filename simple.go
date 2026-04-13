@@ -34,7 +34,7 @@ func main() {
 
 // sendQuery loads an unmarshalled json into target. Returns an error if there is one.
 //
-// This function assumes query is a valid one that has been pre-tested before it is called.
+// * This function assumes query is a valid one that has been pre-tested before it is called. *
 func sendQuery(query string, target any) error {
 	payload := graphqlRequest{Query: query}
 	body, _ := json.Marshal(payload)
@@ -55,7 +55,7 @@ func sendQuery(query string, target any) error {
 	return json.NewDecoder(resp.Body).Decode(target)
 }
 
-// runAsPromise
+// runAsPromise wraps a Go-data-fetching function into a JS Promise, allowing asynchronus execution across the WASM boundary.
 func runAsPromise(fetchFunc func() (any, error)) js.Value {
 	handler := js.FuncOf(func(this js.Value, args []js.Value) any {
 		resolve := args[0]
@@ -181,45 +181,45 @@ type itemPrices struct {
 }
 
 const pricesString = `
-	{
-		items(
-			lang: en
-			ids: [
-				"5d1b376e86f774252519444e"
-				"5d40407c86f774318526545a"
-				"5d403f9186f7743cac3f229b"
-				"5c052e6986f7746b207bc3c9"
-				"5c0530ee86f774697952d952"
-				"5af0548586f7743a532b7e99"
-				"57347c93245977448d35f6e3"
-				"6389c8c5dbfd5e4b95197e6b"
-				"61bf7c024770ee6f9c6b8b53"
-				"590c621186f774138d11ea29"
-				"59faff1d86f7746c51718c9c"
-				"5d235a5986f77443f6329bc6"
-				"59fb023c86f7746d0d4b423c"
-				"5aafbde786f774389d0cbc0f"
-				"61bf7b6302b3924be92fa8c3"
-				"544fb6cc4bdc2d34748b456e"
-				"567143bf4bdc2d1a0f8b4567"
-				"5d1b371186f774253763a656"
-				"5d1b2fa286f77425227d1674"
-				"5c06779c86f77426e00dd782"
-				"5d1b309586f77425227d1676"
-				"5d03775b86f774203e7e0c4b"
-			]
-			gameMode: pve
-		) {
-			shortName
-			iconLink
-			id
-			lastLowPrice
-			sellFor {
-				priceRUB
-			}
+{
+	items(
+		lang: en
+		ids: [
+			"5d1b376e86f774252519444e"
+			"5d40407c86f774318526545a"
+			"5d403f9186f7743cac3f229b"
+			"5c052e6986f7746b207bc3c9"
+			"5c0530ee86f774697952d952"
+			"5af0548586f7743a532b7e99"
+			"57347c93245977448d35f6e3"
+			"6389c8c5dbfd5e4b95197e6b"
+			"61bf7c024770ee6f9c6b8b53"
+			"590c621186f774138d11ea29"
+			"59faff1d86f7746c51718c9c"
+			"5d235a5986f77443f6329bc6"
+			"59fb023c86f7746d0d4b423c"
+			"5aafbde786f774389d0cbc0f"
+			"61bf7b6302b3924be92fa8c3"
+			"544fb6cc4bdc2d34748b456e"
+			"567143bf4bdc2d1a0f8b4567"
+			"5d1b371186f774253763a656"
+			"5d1b2fa286f77425227d1674"
+			"5c06779c86f77426e00dd782"
+			"5d1b309586f77425227d1676"
+			"5d03775b86f774203e7e0c4b"
+		]
+		gameMode: pve
+	) {
+		shortName
+		iconLink
+		id
+		lastLowPrice
+		sellFor {
+			priceRUB
 		}
 	}
-	`
+}
+`
 
 type itemRecipes struct {
 	Data struct {
@@ -244,29 +244,29 @@ type itemRecipes struct {
 }
 
 const recipesString = `	
-	{
-		items(
-			lang: en
-			ids: [
-				"5b6d9ce188a4501afc1b2b25"
-				"5c0a840b86f7742ffa4f2482"
-				"59fb023c86f7746d0d4b423c"
-			]
-			gameMode: pve
-		) {
-			name
-			shortName
-			iconLink
-			bartersFor {
-				requiredItems {
-					item {
-						shortName
-						iconLink
-						id
-					}
-					quantity
+{
+	items(
+		lang: en
+		ids: [
+			"5b6d9ce188a4501afc1b2b25"
+			"5c0a840b86f7742ffa4f2482"
+			"59fb023c86f7746d0d4b423c"
+		]
+		gameMode: pve
+	) {
+		name
+		shortName
+		iconLink
+		bartersFor {
+			requiredItems {
+				item {
+					shortName
+					iconLink
+					id
 				}
+				quantity
 			}
 		}
 	}
-	`
+}
+`
