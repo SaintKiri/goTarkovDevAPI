@@ -16,6 +16,8 @@ const FIVE_MINUTES = 5 * 60 * 1000;
 const ONE_MINUTE = 1 * 60 * 1000;
 const THIRTY_SEC = 30 * 1000;
 
+const RUBBLE = "\u20BD";
+
 // Display in status bar
 const updateRelTime = () => {
   if (!lastUpdateTimestamp.value) { timeAgo.value = 'Never'; return; }
@@ -151,7 +153,7 @@ onUnmounted(() => {
         <li v-for="item in items" :key="item.shortName" class="item-row">
           <img :src="item.iconLink" class="item-icon" />
           {{ item.shortName }}
-          <span class="price">{{ item.bestPrice.toLocaleString() }} &#x20BD;</span>
+          <span class="price">{{ item.bestPrice.toLocaleString() }} {{ RUBBLE }}</span>
         </li>
       </ul>
 
@@ -174,7 +176,7 @@ onUnmounted(() => {
             <div class="total-row">
               <span>Total Cost: </span>
               <span class="price">
-                {{ barter.totalCost.toLocaleString() }} &#x20BD;
+                {{ barter.totalCost.toLocaleString() }} {{ RUBBLE }}
               </span>
             </div>
           </div>
